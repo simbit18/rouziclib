@@ -1429,9 +1429,21 @@ double reduce_digits(double (*f)(double), double segstart, double segend, double
 	double err0, err1;
 	double l, m, r=0., rp;
 
+	// Reject invalid reduction parameters
+	if (!isfinite(added_error_thresh) || !isfinite(digits))
+		return NAN;
+
 	for (i=0; i <= degree; i++)		// go through every coef to round it
 	{
+		// Abort reduction when a fitted coefficient is invalid
+		if (!isfinite(c[i]))
+			return NAN;
+
 		err0 = get_polynomial_error(f, segstart, segend, c, degree, NEGMODE);
+
+		// Abort reduction when the formula produces an invalid baseline error
+		if (!isfinite(err0))
+			return NAN;
 
 		if (c[i] != 0.)			// if the coef is not 0
 		{
@@ -1442,6 +1454,10 @@ double reduce_digits(double (*f)(double), double segstart, double segend, double
 
 			m = pow(10., l);		// -24 -> 1e-24
 
+			// Abort reduction when the initial rounding scale is invalid
+			if (!isfinite(m) || m == 0.)
+				return NAN;
+
 			while (1)
 			{
 				rp = r;			// copy the previous result
@@ -1449,9 +1465,21 @@ double reduce_digits(double (*f)(double), double segstart, double segend, double
 				r = c[i] / m;		// -0.0007 / 1e-24 -> -7e20
 				r = nearbyint(r);	// -7e20
 				r *= m;			// -7e20 * 1e-24 -> -0.0007
+
+				// Abort reduction when rounding produces an invalid coefficient
+				if (!isfinite(r))
+					return NAN;
+
 				swap_double(&c[i], &r);	// set the rounded coef into the coef array for evaluation
 
 				err1 = get_polynomial_error(f, segstart, segend, c, degree, NEGMODE);
+
+				// Restore the coefficient and abort when the formula produces an invalid error
+				if (!isfinite(err1))
+				{
+					swap_double(&c[i], &r);
+					return NAN;
+				}
 
 				if (err1 > err0 * added_error_thresh || c[i]==0.)	// if the added error is over the threshold
 				{
@@ -1460,9 +1488,13 @@ double reduce_digits(double (*f)(double), double segstart, double segend, double
 					break;
 				}
 				else
-					swap_double(&c[i], &r);		// restore the unrounded coef
+						swap_double(&c[i], &r);		// restore the unrounded coef
 
 				m *= 10.;		// 1e-24 -> 1e-23
+
+				// Abort reduction when the rounding scale overflows
+				if (!isfinite(m))
+					return NAN;
 			}
 		}
 	}
@@ -1476,10 +1508,22 @@ double reduce_digits_2d(double (*f)(double,double), xy_t segstart, xy_t segend, 
 	double err0, err1;
 	double l, m, r=0., rp;
 
+	// Reject invalid reduction parameters
+	if (!isfinite(added_error_thresh) || !isfinite(digits))
+		return NAN;
+
 	for (ip.y=0; ip.y <= degree.y; ip.y++)		// go through every coef to round it
 		for (ip.x=0; ip.x <= degree.x; ip.x++)
 		{
+			// Abort reduction when a fitted coefficient is invalid
+			if (!isfinite(c[ip.y][ip.x]))
+				return NAN;
+
 			err0 = get_polynomial_error_2d(f, segstart, segend, c, degree, NEGMODE);
+
+			// Abort reduction when the formula produces an invalid baseline error
+			if (!isfinite(err0))
+				return NAN;
 
 			if (c[ip.y][ip.x] != 0.)			// if the coef is not 0
 			{
@@ -1490,6 +1534,10 @@ double reduce_digits_2d(double (*f)(double,double), xy_t segstart, xy_t segend, 
 
 				m = pow(10., l);		// -24 -> 1e-24
 
+				// Abort reduction when the initial rounding scale is invalid
+				if (!isfinite(m) || m == 0.)
+					return NAN;
+
 				while (1)
 				{
 					rp = r;			// copy the previous result
@@ -1497,9 +1545,21 @@ double reduce_digits_2d(double (*f)(double,double), xy_t segstart, xy_t segend, 
 					r = c[ip.y][ip.x] / m;		// -0.0007 / 1e-24 -> -7e20
 					r = nearbyint(r);	// -7e20
 					r *= m;			// -7e20 * 1e-24 -> -0.0007
+
+					// Abort reduction when rounding produces an invalid coefficient
+					if (!isfinite(r))
+						return NAN;
+
 					swap_double(&c[ip.y][ip.x], &r);	// set the rounded coef into the coef array for evaluation
 
 					err1 = get_polynomial_error_2d(f, segstart, segend, c, degree, NEGMODE);
+
+					// Restore the coefficient and abort when the formula produces an invalid error
+					if (!isfinite(err1))
+					{
+						swap_double(&c[ip.y][ip.x], &r);
+						return NAN;
+					}
 
 					if (err1 > err0 * added_error_thresh || c[ip.y][ip.x]==0.)	// if the added error is over the threshold
 					{
@@ -1511,6 +1571,10 @@ double reduce_digits_2d(double (*f)(double,double), xy_t segstart, xy_t segend, 
 						swap_double(&c[ip.y][ip.x], &r);		// restore the unrounded coef
 
 					m *= 10.;		// 1e-24 -> 1e-23
+
+					// Abort reduction when the rounding scale overflows
+					if (!isfinite(m))
+						return NAN;
 				}
 			}
 		}
