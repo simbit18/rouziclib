@@ -1,4 +1,7 @@
+#pragma push_macro("pi")
+#undef pi
 #include <AppKit/AppKit.h>
+#pragma pop_macro("pi")
 
 void mac_file_dialog_win_filter(NSSavePanel *dialog, const char *win_filter)
 {
